@@ -138,8 +138,10 @@ class Worker implements Writer, AutoCloseable {
 
     String routeValue = extractRouteValue(record.value(), routeField);
     if (routeValue != null) {
-      // Use the original table name without converting to lowercase to preserve case sensitivity
-      String tableName = routeValue;
+      // Convert to lowercase for backwards compatibility unless case-sensitive is enabled
+      String tableName = config.dynamicTableNameCaseSensitive()
+          ? routeValue
+          : routeValue.toLowerCase();
       writerForTable(tableName, record, true).write(record);
     }
   }
