@@ -173,18 +173,7 @@ public class Utilities {
     if (!idCols.isEmpty()) {
       identifierFieldIds =
           idCols.stream()
-              .map(
-                  colName -> {
-                    org.apache.iceberg.types.Types.NestedField field =
-                        table.schema().asStruct().caseInsensitiveField(colName);
-                    if (field == null) {
-                      throw new IllegalArgumentException(
-                          String.format(
-                              "Cannot find field '%s' in table '%s'. Available fields: %s",
-                              colName, tableName, table.schema().columns()));
-                    }
-                    return field.fieldId();
-                  })
+              .map(colName -> table.schema().findField(colName).fieldId())
               .collect(toSet());
     }
 

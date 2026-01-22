@@ -144,38 +144,7 @@ public class SchemaUtils {
   }
 
   private static boolean isOptional(org.apache.iceberg.Schema schema, MakeOptional update) {
-    // Try case-insensitive lookup for nested fields
-    org.apache.iceberg.types.Types.NestedField field = findFieldCaseInsensitive(schema, update.name());
-    if (field == null) {
-      // Field not found, likely already handled or doesn't exist
-      return false;
-    }
-    return field.isOptional();
-  }
-
-  private static org.apache.iceberg.types.Types.NestedField findFieldCaseInsensitive(
-      org.apache.iceberg.Schema schema, String name) {
-    // For simple field names (no dots), use caseInsensitiveField on the struct
-    if (!name.contains(".")) {
-      return schema.asStruct().caseInsensitiveField(name);
-    }
-
-    // For nested fields, we need to traverse the path
-    String[] parts = name.split("\\.");
-    org.apache.iceberg.types.Types.StructType currentStruct = schema.asStruct();
-    org.apache.iceberg.types.Types.NestedField currentField = null;
-
-    for (String part : parts) {
-      currentField = currentStruct.caseInsensitiveField(part);
-      if (currentField == null) {
-        return null;
-      }
-      if (currentField.type().isStructType()) {
-        currentStruct = currentField.type().asStructType();
-      }
-    }
-
-    return currentField;
+    return schema.findField(update.name()).isOptional();
   }
 
   public static PartitionSpec createPartitionSpec(
