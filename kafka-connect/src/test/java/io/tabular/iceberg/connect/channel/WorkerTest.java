@@ -66,14 +66,14 @@ public class WorkerTest {
 
   @Test
   public void testDynamicRouteWithMixedCaseTableName() {
-    // Test that table names with mixed case (uppercase letters) are preserved when case-sensitive is enabled
+    // Test that table names with mixed case (uppercase letters) are preserved when case-insensitive is disabled
     String mixedCaseTableName = "db.MyTable_WithMixedCase";
 
     IcebergSinkConfig config = mock(IcebergSinkConfig.class);
     when(config.dynamicTablesEnabled()).thenReturn(true);
     when(config.tablesRouteField()).thenReturn(FIELD_NAME);
     when(config.catalogName()).thenReturn("catalog");
-    when(config.dynamicTableNameCaseSensitive()).thenReturn(true);
+    when(config.tableNameCaseInsensitive()).thenReturn(false);
 
     Map<String, Object> value = ImmutableMap.of(FIELD_NAME, mixedCaseTableName);
 
@@ -114,7 +114,7 @@ public class WorkerTest {
     when(config.dynamicTablesEnabled()).thenReturn(true);
     when(config.tablesRouteField()).thenReturn(FIELD_NAME);
     when(config.catalogName()).thenReturn("catalog");
-    when(config.dynamicTableNameCaseSensitive()).thenReturn(true);
+    when(config.tableNameCaseInsensitive()).thenReturn(false);
 
     Map<String, Object> value = ImmutableMap.of(FIELD_NAME, tableName);
 
@@ -150,7 +150,7 @@ public class WorkerTest {
 
   @Test
   public void testDynamicRouteWithMixedCaseTableNameBackwardsCompatibility() {
-    // Test backwards compatibility: with case-sensitive disabled (default), table names are converted to lowercase
+    // Test backwards compatibility: with case-insensitive enabled (default), table names are converted to lowercase
     String mixedCaseTableName = "db.MyTable_WithMixedCase";
     String expectedLowercaseTableName = mixedCaseTableName.toLowerCase();
 
@@ -158,7 +158,7 @@ public class WorkerTest {
     when(config.dynamicTablesEnabled()).thenReturn(true);
     when(config.tablesRouteField()).thenReturn(FIELD_NAME);
     when(config.catalogName()).thenReturn("catalog");
-    when(config.dynamicTableNameCaseSensitive()).thenReturn(false); // Default behavior
+    when(config.tableNameCaseInsensitive()).thenReturn(true); // Default behavior
 
     Map<String, Object> value = ImmutableMap.of(FIELD_NAME, mixedCaseTableName);
 
@@ -193,7 +193,7 @@ public class WorkerTest {
 
   @Test
   public void testDynamicRouteTableNameCaseMismatch() {
-    // Test that with case-sensitive=false, the writer is called with lowercase table name
+    // Test that with case-insensitive=true, the writer is called with lowercase table name
     String mixedCaseTableName = "db.MyTable_WithMixedCase";
     String expectedLowercaseTableName = mixedCaseTableName.toLowerCase();
 
@@ -201,7 +201,7 @@ public class WorkerTest {
     when(config.dynamicTablesEnabled()).thenReturn(true);
     when(config.tablesRouteField()).thenReturn(FIELD_NAME);
     when(config.catalogName()).thenReturn("catalog");
-    when(config.dynamicTableNameCaseSensitive()).thenReturn(false);
+    when(config.tableNameCaseInsensitive()).thenReturn(true);
 
     Map<String, Object> value = ImmutableMap.of(FIELD_NAME, mixedCaseTableName);
 
@@ -229,14 +229,14 @@ public class WorkerTest {
 
   @Test
   public void testDynamicRouteTableNameCaseSensitivePreservesCase() {
-    // Test that with case-sensitive=true, the writer is called with the original case
+    // Test that with case-insensitive=false, the writer is called with the original case
     String mixedCaseTableName = "db.MyTable_WithMixedCase";
 
     IcebergSinkConfig config = mock(IcebergSinkConfig.class);
     when(config.dynamicTablesEnabled()).thenReturn(true);
     when(config.tablesRouteField()).thenReturn(FIELD_NAME);
     when(config.catalogName()).thenReturn("catalog");
-    when(config.dynamicTableNameCaseSensitive()).thenReturn(true);
+    when(config.tableNameCaseInsensitive()).thenReturn(false);
 
     Map<String, Object> value = ImmutableMap.of(FIELD_NAME, mixedCaseTableName);
 
