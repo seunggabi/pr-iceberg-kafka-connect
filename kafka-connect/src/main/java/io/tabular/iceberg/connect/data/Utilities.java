@@ -154,6 +154,48 @@ public class Utilities {
     return getValueFromMap((Map<?, ?>) value, fields, idx + 1);
   }
 
+  /**
+   * Find a field in the schema by name, ignoring case. This is useful when the field name in the
+   * config might have different case than the schema.
+   *
+   * @param schema the Iceberg schema to search
+   * @param fieldName the field name to find (case-insensitive)
+   * @param tableName the table name for error reporting
+   * @return the matching field
+   * @throws IllegalArgumentException if the field is not found
+   */
+  private static org.apache.iceberg.types.Types.NestedField findFieldCaseInsensitive(
+      org.apache.iceberg.Schema schema, String fieldName, String tableName) {
+    // First try exact match for performance
+    org.apache.iceberg.types.Types.NestedField field = schema.findField(fieldName);
+    if (field != null) {
+      return field;
+    }
+
+    // If no exact match, try case-insensitive search
+    for (org.apache.iceberg.types.Types.NestedField f : schema.columns()) {
+      if (f.name().equalsIgnoreCase(fieldName)) {
+        LOG.info(
+            "Found field '{}' using case-insensitive match as '{}' in table '{}'",
+            fieldName,
+            f.name(),
+            tableName);
+        return f;
+      }
+    }
+
+    String errorMsg =
+        String.format(
+            "Field '%s' not found in table '%s'. Available fields: %s",
+            fieldName,
+            tableName,
+            schema.columns().stream()
+                .map(org.apache.iceberg.types.Types.NestedField::name)
+                .collect(java.util.stream.Collectors.joining(", ")));
+    LOG.error(errorMsg);
+    throw new IllegalArgumentException(errorMsg);
+  }
+
   public static TaskWriter<Record> createTableWriter(
       Table table, String tableName, IcebergSinkConfig config) {
     Map<String, String> tableProps = Maps.newHashMap(table.properties());
@@ -173,7 +215,7 @@ public class Utilities {
     if (!idCols.isEmpty()) {
       identifierFieldIds =
           idCols.stream()
-              .map(colName -> table.schema().findField(colName).fieldId())
+              .map(colName -> findFieldCaseInsensitive(table.schema(), colName, tableName).fieldId())
               .collect(toSet());
     }
 
