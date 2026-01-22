@@ -83,6 +83,8 @@ public class IcebergSinkConfig extends AbstractConfig {
       "iceberg.tables.schema-force-optional";
   private static final String TABLES_SCHEMA_CASE_INSENSITIVE_PROP =
       "iceberg.tables.schema-case-insensitive";
+  private static final String TABLES_TABLE_NAME_CASE_INSENSITIVE_PROP =
+      "iceberg.tables.table-name-case-insensitive";
   private static final String CONTROL_TOPIC_PROP = "iceberg.control.topic";
   private static final String CONTROL_GROUP_ID_PROP = "iceberg.control.group-id";
   private static final String COMMIT_INTERVAL_MS_PROP = "iceberg.control.commit.interval-ms";
@@ -183,6 +185,12 @@ public class IcebergSinkConfig extends AbstractConfig {
         false,
         Importance.MEDIUM,
         "Set to true to look up table columns by case-insensitive name, false for case-sensitive");
+    configDef.define(
+        TABLES_TABLE_NAME_CASE_INSENSITIVE_PROP,
+        Type.BOOLEAN,
+        true,
+        Importance.LOW,
+        "Set to true to convert table names to lowercase in dynamic routing (default for backwards compatibility), false to preserve case");
     configDef.define(
         TABLES_EVOLVE_SCHEMA_ENABLED_PROP,
         Type.BOOLEAN,
@@ -445,6 +453,10 @@ public class IcebergSinkConfig extends AbstractConfig {
 
   public boolean schemaCaseInsensitive() {
     return getBoolean(TABLES_SCHEMA_CASE_INSENSITIVE_PROP);
+  }
+
+  public boolean tableNameCaseInsensitive() {
+    return getBoolean(TABLES_TABLE_NAME_CASE_INSENSITIVE_PROP);
   }
 
   public JsonConverter jsonConverter() {
