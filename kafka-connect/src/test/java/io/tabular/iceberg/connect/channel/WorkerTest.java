@@ -62,6 +62,88 @@ public class WorkerTest {
     workerTest(config, value);
   }
 
+  @Test
+  public void testDynamicRouteWithMixedCaseTableName() {
+    // Test that table names with mixed case (uppercase letters) are preserved
+    String mixedCaseTableName = "db.MyTable_WithMixedCase";
+
+    IcebergSinkConfig config = mock(IcebergSinkConfig.class);
+    when(config.dynamicTablesEnabled()).thenReturn(true);
+    when(config.tablesRouteField()).thenReturn(FIELD_NAME);
+    when(config.catalogName()).thenReturn("catalog");
+
+    Map<String, Object> value = ImmutableMap.of(FIELD_NAME, mixedCaseTableName);
+
+    WriterResult writeResult =
+        new WriterResult(
+            TableIdentifier.parse(mixedCaseTableName),
+            ImmutableList.of(EventTestUtil.createDataFile()),
+            ImmutableList.of(),
+            StructType.of());
+    IcebergWriter writer = mock(IcebergWriter.class);
+    when(writer.complete()).thenReturn(ImmutableList.of(writeResult));
+
+    IcebergWriterFactory writerFactory = mock(IcebergWriterFactory.class);
+    when(writerFactory.createWriter(any(), any(), anyBoolean())).thenReturn(writer);
+
+    Writer worker = new Worker(config, writerFactory);
+
+    // save a record
+    SinkRecord rec = new SinkRecord(SRC_TOPIC_NAME, 0, null, "key", null, value, 0L);
+    worker.write(ImmutableList.of(rec));
+
+    Committable committable = worker.committable();
+
+    assertThat(committable.offsetsByTopicPartition()).hasSize(1);
+    assertThat(committable.writerResults()).hasSize(1);
+
+    // Verify that the table name in the result preserves the original case
+    WriterResult result = committable.writerResults().get(0);
+    assertThat(result.tableIdentifier().toString()).isEqualTo(mixedCaseTableName);
+  }
+
+  @Test
+  public void testDynamicRouteWithUpperCaseTableName() {
+    // Test similar to the actual error case: btm_daily_cash_supplyPlan1_tb
+    String tableName = "db.btm_daily_cash_supplyPlan1_tb";
+
+    IcebergSinkConfig config = mock(IcebergSinkConfig.class);
+    when(config.dynamicTablesEnabled()).thenReturn(true);
+    when(config.tablesRouteField()).thenReturn(FIELD_NAME);
+    when(config.catalogName()).thenReturn("catalog");
+
+    Map<String, Object> value = ImmutableMap.of(FIELD_NAME, tableName);
+
+    WriterResult writeResult =
+        new WriterResult(
+            TableIdentifier.parse(tableName),
+            ImmutableList.of(EventTestUtil.createDataFile()),
+            ImmutableList.of(),
+            StructType.of());
+    IcebergWriter writer = mock(IcebergWriter.class);
+    when(writer.complete()).thenReturn(ImmutableList.of(writeResult));
+
+    IcebergWriterFactory writerFactory = mock(IcebergWriterFactory.class);
+    when(writerFactory.createWriter(any(), any(), anyBoolean())).thenReturn(writer);
+
+    Writer worker = new Worker(config, writerFactory);
+
+    // save a record
+    SinkRecord rec = new SinkRecord(SRC_TOPIC_NAME, 0, null, "key", null, value, 0L);
+    worker.write(ImmutableList.of(rec));
+
+    Committable committable = worker.committable();
+
+    assertThat(committable.offsetsByTopicPartition()).hasSize(1);
+    assertThat(committable.writerResults()).hasSize(1);
+
+    // Verify that the table name preserves the original case (not converted to lowercase)
+    WriterResult result = committable.writerResults().get(0);
+    assertThat(result.tableIdentifier().toString()).isEqualTo(tableName);
+    // Ensure it's NOT converted to lowercase
+    assertThat(result.tableIdentifier().toString()).isNotEqualTo(tableName.toLowerCase());
+  }
+
   private void workerTest(IcebergSinkConfig config, Map<String, Object> value) {
     WriterResult writeResult =
         new WriterResult(
