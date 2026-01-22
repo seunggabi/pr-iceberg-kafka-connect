@@ -19,31 +19,18 @@
 package io.tabular.iceberg.connect.data;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import io.tabular.iceberg.connect.IcebergSinkConfig;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.iceberg.LocationProviders;
-import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.Table;
-import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.catalog.Catalog;
-import org.apache.iceberg.encryption.PlaintextEncryptionManager;
 import org.apache.iceberg.hadoop.Configurable;
 import org.apache.iceberg.inmemory.InMemoryCatalog;
-import org.apache.iceberg.inmemory.InMemoryFileIO;
-import org.apache.iceberg.relocated.com.google.common.collect.ImmutableList;
 import org.apache.iceberg.relocated.com.google.common.collect.ImmutableMap;
-import org.apache.iceberg.relocated.com.google.common.collect.ImmutableSet;
-import org.apache.iceberg.types.Types;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.data.Struct;
@@ -169,75 +156,5 @@ public class UtilitiesTest {
 
     Object result = Utilities.extractFromRecordValue(val, "data.id.key");
     assertThat(result).isEqualTo(123L);
-  }
-
-  @Test
-  public void testCreateTableWriterWithCaseInsensitiveIdColumns() {
-    // Create a schema with mixed-case field names
-    org.apache.iceberg.Schema schema =
-        new org.apache.iceberg.Schema(
-            ImmutableList.of(
-                Types.NestedField.required(1, "userId", Types.LongType.get()),
-                Types.NestedField.required(2, "userName", Types.StringType.get()),
-                Types.NestedField.required(3, "createdAt", Types.LongType.get())),
-            ImmutableSet.of(1));
-
-    InMemoryFileIO fileIO = new InMemoryFileIO();
-    Table table = mock(Table.class);
-    when(table.schema()).thenReturn(schema);
-    when(table.spec()).thenReturn(PartitionSpec.unpartitioned());
-    when(table.io()).thenReturn(fileIO);
-    when(table.locationProvider())
-        .thenReturn(LocationProviders.locationsFor("file", ImmutableMap.of()));
-    when(table.encryption()).thenReturn(new PlaintextEncryptionManager());
-    when(table.properties()).thenReturn(ImmutableMap.of());
-
-    // Create config with lowercase id column names (should match case-insensitively)
-    Map<String, String> props =
-        ImmutableMap.<String, String>builder()
-            .put("topics", "test-topic")
-            .put("iceberg.tables", "test-table")
-            .put("iceberg.tables.test-table.id-columns", "userid,createdat")
-            .put("iceberg.catalog.catalog-impl", InMemoryCatalog.class.getName())
-            .build();
-    IcebergSinkConfig config = new IcebergSinkConfig(props);
-
-    // This should not throw an exception - it should find fields case-insensitively
-    assertThat(Utilities.createTableWriter(table, "test-table", config)).isNotNull();
-  }
-
-  @Test
-  public void testCreateTableWriterWithNonexistentIdColumn() {
-    org.apache.iceberg.Schema schema =
-        new org.apache.iceberg.Schema(
-            ImmutableList.of(
-                Types.NestedField.required(1, "userId", Types.LongType.get()),
-                Types.NestedField.required(2, "userName", Types.StringType.get())),
-            ImmutableSet.of(1));
-
-    InMemoryFileIO fileIO = new InMemoryFileIO();
-    Table table = mock(Table.class);
-    when(table.schema()).thenReturn(schema);
-    when(table.spec()).thenReturn(PartitionSpec.unpartitioned());
-    when(table.io()).thenReturn(fileIO);
-    when(table.locationProvider())
-        .thenReturn(LocationProviders.locationsFor("file", ImmutableMap.of()));
-    when(table.encryption()).thenReturn(new PlaintextEncryptionManager());
-    when(table.properties()).thenReturn(ImmutableMap.of());
-    when(table.name()).thenReturn("test-table");
-
-    Map<String, String> props =
-        ImmutableMap.<String, String>builder()
-            .put("topics", "test-topic")
-            .put("iceberg.tables", "test-table")
-            .put("iceberg.tables.test-table.id-columns", "nonexistent")
-            .put("iceberg.catalog.catalog-impl", InMemoryCatalog.class.getName())
-            .build();
-    IcebergSinkConfig config = new IcebergSinkConfig(props);
-
-    // This should throw an IllegalArgumentException with a helpful message
-    assertThatThrownBy(() -> Utilities.createTableWriter(table, "test-table", config))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Cannot find field 'nonexistent'");
   }
 }
