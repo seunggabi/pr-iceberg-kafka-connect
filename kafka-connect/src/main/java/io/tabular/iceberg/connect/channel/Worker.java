@@ -93,10 +93,20 @@ class Worker implements Writer, AutoCloseable {
         new TopicPartition(record.topic(), record.kafkaPartition()),
         new Offset(record.kafkaOffset() + 1, record.timestamp()));
 
-    if (config.dynamicTablesEnabled()) {
-      routeRecordDynamically(record);
-    } else {
-      routeRecordStatically(record);
+    try {
+      if (config.dynamicTablesEnabled()) {
+        routeRecordDynamically(record);
+      } else {
+        routeRecordStatically(record);
+      }
+    } catch (Exception e) {
+      LOG.error(
+          "Failed to process record - topic: {}, partition: {}, offset: {}",
+          record.topic(),
+          record.kafkaPartition(),
+          record.kafkaOffset(),
+          e);
+      throw e;
     }
   }
 
@@ -109,7 +119,18 @@ class Worker implements Writer, AutoCloseable {
           .tables()
           .forEach(
               tableName -> {
-                writerForTable(tableName, record, false).write(record);
+                try {
+                  writerForTable(tableName, record, false).write(record);
+                } catch (Exception e) {
+                  LOG.error(
+                      "Failed to write to table '{}' - topic: {}, partition: {}, offset: {}",
+                      tableName,
+                      record.topic(),
+                      record.kafkaPartition(),
+                      record.kafkaOffset(),
+                      e);
+                  throw e;
+                }
               });
 
     } else {
@@ -125,7 +146,18 @@ class Worker implements Writer, AutoCloseable {
                         .ifPresent(
                             regex -> {
                               if (regex.matcher(routeValue).matches()) {
-                                writerForTable(tableName, record, false).write(record);
+                                try {
+                                  writerForTable(tableName, record, false).write(record);
+                                } catch (Exception e) {
+                                  LOG.error(
+                                      "Failed to write to table '{}' - topic: {}, partition: {}, offset: {}",
+                                      tableName,
+                                      record.topic(),
+                                      record.kafkaPartition(),
+                                      record.kafkaOffset(),
+                                      e);
+                                  throw e;
+                                }
                               }
                             }));
       }
@@ -134,15 +166,29 @@ class Worker implements Writer, AutoCloseable {
 
   private void routeRecordDynamically(SinkRecord record) {
     String routeField = config.tablesRouteField();
-    Preconditions.checkNotNull(routeField, String.format("Route field cannot be null with dynamic routing at topic: %s, partition: %d, offset: %d", record.topic(), record.kafkaPartition(), record.kafkaOffset()));
+    Preconditions.checkNotNull(
+        routeField,
+        String.format(
+            "Route field cannot be null with dynamic routing at topic: %s, partition: %d, offset: %d",
+            record.topic(), record.kafkaPartition(), record.kafkaOffset()));
 
     String routeValue = extractRouteValue(record.value(), routeField);
     if (routeValue != null) {
       // Convert to lowercase for backwards compatibility if case-insensitive is enabled (default)
-      String tableName = config.tableNameCaseInsensitive()
-          ? routeValue.toLowerCase()
-          : routeValue;
-      writerForTable(tableName, record, true).write(record);
+      String tableName =
+          config.tableNameCaseInsensitive() ? routeValue.toLowerCase() : routeValue;
+      try {
+        writerForTable(tableName, record, true).write(record);
+      } catch (Exception e) {
+        LOG.error(
+            "Failed to write to table '{}' - topic: {}, partition: {}, offset: {}",
+            tableName,
+            record.topic(),
+            record.kafkaPartition(),
+            record.kafkaOffset(),
+            e);
+        throw e;
+      }
     }
   }
 

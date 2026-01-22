@@ -18,7 +18,6 @@
  */
 package io.tabular.iceberg.connect.data;
 
-import static java.util.stream.Collectors.toSet;
 import static org.apache.iceberg.TableProperties.DEFAULT_FILE_FORMAT;
 import static org.apache.iceberg.TableProperties.DEFAULT_FILE_FORMAT_DEFAULT;
 import static org.apache.iceberg.TableProperties.WRITE_TARGET_FILE_SIZE_BYTES;
@@ -171,10 +170,23 @@ public class Utilities {
     // override the identifier fields if the config is set
     List<String> idCols = config.tableConfig(tableName).idColumns();
     if (!idCols.isEmpty()) {
-      identifierFieldIds =
-          idCols.stream()
-              .map(colName -> table.schema().findField(colName).fieldId())
-              .collect(toSet());
+      identifierFieldIds = Sets.newHashSet();
+      for (String colName : idCols) {
+        org.apache.iceberg.types.Types.NestedField field = table.schema().findField(colName);
+        if (field == null) {
+          String availableFields =
+              table.schema().columns().stream()
+                  .map(org.apache.iceberg.types.Types.NestedField::name)
+                  .collect(java.util.stream.Collectors.joining(", "));
+          String errorMsg =
+              String.format(
+                  "Identifier column '%s' not found in table '%s'. Available columns: [%s]",
+                  colName, tableName, availableFields);
+          LOG.error(errorMsg);
+          throw new IllegalArgumentException(errorMsg);
+        }
+        identifierFieldIds.add(field.fieldId());
+      }
     }
 
     FileAppenderFactory<Record> appenderFactory;
